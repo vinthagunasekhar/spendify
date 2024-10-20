@@ -55,23 +55,22 @@ def register_routes(app):
 
 def validate_card_input(data):
     errors = {}
+    
+    # Validate billing_start
+    if 'billing_start' not in data or not isinstance(data['billing_start'], int) or not (1 <= data['billing_start'] <= 31):
+        errors['billing_start'] = 'Please select a valid billing start date (1-31).'
+    
+    # Validate billing_end
+    if 'billing_end' not in data or not isinstance(data['billing_end'], int) or not (1 <= data['billing_end'] <= 31):
+        errors['billing_end'] = 'Please select a valid billing end date (1-31).'
 
-    if 'name' not in data or data['name'] not in CARD_NAMES:
-        errors['name'] = "Please select a valid credit card from the list."
-
-    if 'billing_start' not in data or data['billing_start'] not in range(1, 32):
-        errors['billing_start'] = "Please select a valid billing start date (1-31)."
-
-    if 'billing_end' not in data or data['billing_end'] not in range(1, 32):
-        errors['billing_end'] = "Please select a valid billing end date (1-31)."
-
-    if 'limit_option' not in data or data['limit_option'] not in ['A', 'B']:
-        errors['limit_option'] = "Please select a valid limit option (A or B)."
-    elif data['limit_option'] == 'A':
-        if 'limit_value' not in data or not data['limit_value'].isdigit() or int(data['limit_value']) <= 0:
-            errors['limit_value'] = "Please enter a valid credit limit (positive integer)."
+    # Validate limit_value
+    if data.get('limit_option') == 'A':  # Assuming limit_value is only required for specific limit option
+        if 'limit_value' not in data or not isinstance(data['limit_value'], (int, float)) or data['limit_value'] <= 0:
+            errors['limit_value'] = 'Please enter a valid limit value greater than 0.'
 
     return errors
+
 
 
 def calculate_strategy(cards):
