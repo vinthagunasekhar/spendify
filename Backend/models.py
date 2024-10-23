@@ -1,32 +1,19 @@
-from datetime import datetime, timedelta
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
-class CreditCard:
-    def __init__(self, name, billing_start, billing_end, limit):
-        self.name = name
-        self.billing_start = int(billing_start)
-        self.billing_end = int(billing_end)
-        self.limit = limit
-        self.usage_start = None
-        self.usage_end = None
-        self.due_date = None
+db = SQLAlchemy()
 
-    def set_usage_period(self, start, end):
-        self.usage_start = start
-        self.usage_end = end
+class CreditCard(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    card_name = db.Column(db.String(100), nullable=False)
+    credit_limit = db.Column(db.Float, nullable=False)
+    cycle_start = db.Column(db.Integer, nullable=False)  # Day of month
+    cycle_end = db.Column(db.Integer, nullable=False)    # Day of month
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def set_due_date(self):
-        # Assuming due date is 20 days after billing end date
-        due_date = datetime(datetime.now().year, datetime.now().month, self.billing_end) + timedelta(days=20)
-        self.due_date = due_date.strftime("%b %d")
-
-class CardStorage:
-    def __init__(self):
-        self.cards = []
-
-    def add_card(self, card):
-        self.cards.append(card)
-
-    def get_cards(self):
-        return self.cards
-
-card_storage = CardStorage()
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    cards = db.relationship('CreditCard', backref='user', lazy=True)

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h2 class="text-xl font-bold mb-4">Add New Card</h2>
+        <form id="cardForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium">Card Name</label>
+                <input type="text" name="card_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium">Credit Limit</label>
+                <input type="number" name="credit_limit" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium">Cycle Start Date</label>
+                <input type="number" name="cycle_start" min="1" max="31" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium">Cycle End Date</label>
+                <input type="number" name="cycle_end" min="1" max="31" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+            </div>
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Card</button>
+        </form>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h2 class="text-xl font-bold mb-4">Get Recommendation</h2>
+        <form id="recommendationForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium">Date</label>
+                <input type="date" name="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+            </div>
+            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Get Recommendation</button>
+        </form>
+        <div id="recommendation" class="mt-4"></div>
+    </div>
+</div>
+
+<script>
+document.getElementById('cardForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+
+    try {
+        const response = await fetch('/add_card', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+            alert('Card added successfully!');
+            e.target.reset();
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.error}`);
+        }
+    } catch (error) {
+        alert('Error adding card');
+    }
+});
+
+document.getElementById('recommendationForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const date = formData.get('date');
+
+    try {
+        const response = await fetch(`/get_recommendation?date=${date}`);
+        const data = await response.json();
+
+        if (response.ok) {
+            const recommendationDiv = document.getElementById('recommendation');
+            recommendationDiv.innerHTML = `
+                <div class="p-4 bg-blue-100 rounded-md">
+                    <p class="font-bold">Recommended Card: ${data.recommended_card}</p>
+                    <p>Credit Limit: $${data.credit_limit}</p>
+                    <p>Reason: ${data.reason}</p>
+                </div>
+            `;
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (error) {
+        alert('Error getting recommendation');
+    }
+});
+</script>
+{% endblock %}
