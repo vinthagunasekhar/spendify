@@ -19,3 +19,7 @@ def create_app():
         db.create_all()
 
     return app
+
+if __name__ == '__main__':
+    app = create_app()
+    app.run(debug=True)
