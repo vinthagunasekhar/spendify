@@ -18,13 +18,27 @@ def calculate_billing_days(start_date, end_date):
         return (end - start) + 1
 
 
-def get_usage_period(billing_start, billing_end, days):
-    start = int(billing_start)
-    end = (datetime(2000, 1, start) + timedelta(days=days - 1)).day
+def get_next_date(date):
+    date = int(date)
+    return 1 if date == 31 else date + 1
 
-    return f"{start} to {end}"
+
+def assign_usage_periods(cards):
+    # Sort cards by limit (highest to lowest, None last)
+    sorted_cards = sorted(cards, key=lambda x: (x.limit is None, -1 if x.limit is None else -x.limit))
+
+    # Assign usage periods based on billing cycles and limits
+    for i, card in enumerate(sorted_cards):
+        if i == 0:  # Highest limit card
+            card.set_usage_period(get_next_date(card.billing_end), sorted_cards[1].billing_end)
+        elif i == len(sorted_cards) - 1:  # Last card
+            card.set_usage_period(get_next_date(sorted_cards[i - 1].billing_end), card.billing_end)
+        else:  # Middle cards
+            card.set_usage_period(get_next_date(sorted_cards[i - 1].billing_end), sorted_cards[i + 1].billing_end)
+
+    return sorted_cards
 
 
 def sort_cards(cards, today):
     today = int(today)
-    return sorted(cards, key=lambda x: (today - int(x.billing_start)) % 31)
+    return sorted(cards, key=lambda x: (today - x.usage_start) % 31)

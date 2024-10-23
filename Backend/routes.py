@@ -1,7 +1,8 @@
 from flask import jsonify, request
 from models import CreditCard, card_storage
-from utils import calculate_billing_days, get_usage_period, sort_cards
+from utils import assign_usage_periods, sort_cards
 from config import CARD_NAMES
+from datetime import datetime
 
 
 def register_routes(app):
@@ -75,31 +76,24 @@ def validate_card_input(data):
 
 
 def calculate_strategy(cards):
-    # Sort cards: No limit cards first, then by credit limit (highest to lowest)
-    sorted_cards = sorted(cards, key=lambda x: (x.limit is not None, -1 if x.limit is None else -x.limit))
+    # Assign usage periods based on the new flexible strategy
+    assigned_cards = assign_usage_periods(cards)
 
-    # Assign usage periods
-    total_days = 30  # We'll use this as a baseline
-    assigned_days = 0
-    for card in sorted_cards:
-        if card == sorted_cards[-1]:  # Last card
-            days = total_days - assigned_days
-        else:
-            days = min(21, total_days - assigned_days)
-        card.usage = get_usage_period(card.billing_start, card.billing_end, days)
-        assigned_days += days
+    # Set due dates for all cards
+    for card in assigned_cards:
+        card.set_due_date()
 
-    # Sort cards based on today's date
-    from datetime import datetime
-    today = datetime.now().strftime("%d")
-    final_sorted_cards = sort_cards(sorted_cards, today)
+    # Sort cards based on today's date for the final strategy order
+    today = datetime.now().day
+    final_sorted_cards = sort_cards(assigned_cards, today)
 
     strategy = []
     for card in final_sorted_cards:
         card_info = {
             'name': card.name,
-            'usage': card.usage,
-            'limit': "No Limit" if card.limit is None else f"${card.limit:,}"
+            'usage': f"{card.usage_start} to {card.usage_end}",
+            'limit': "No Limit" if card.limit is None else f"${card.limit:,}",
+            'due_date': card.due_date
         }
         strategy.append(card_info)
 
