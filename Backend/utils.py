@@ -40,8 +40,11 @@ def handle_billing_cycle_dates(date_value: int) -> Tuple[int, int]:
     return None, None
 
 
-def validate_card_data(data: Dict) -> Tuple[bool, List[str], Dict]:
-    """Validates and processes card data."""
+def validate_card_data(data: dict) -> tuple[bool, list[str], dict]:
+    """
+    Validates and processes the card data provided by the user.
+    Returns (is_valid, list of error messages, processed_data)
+    """
     errors = []
     processed_data = {}
 
@@ -49,7 +52,7 @@ def validate_card_data(data: Dict) -> Tuple[bool, List[str], Dict]:
     if 'card_type' not in data:
         errors.append("Card type is required")
     elif data['card_type'] not in Config.AVAILABLE_CARDS:
-        errors.append(f"Invalid card type. Must be one of: {', '.join(Config.AVAILABLE_CARDS)}")
+        errors.append(f"Invalid card type. Must be one of: {', '.join(sorted(Config.AVAILABLE_CARDS))}")
     else:
         processed_data['card_type'] = data['card_type']
 
@@ -57,28 +60,35 @@ def validate_card_data(data: Dict) -> Tuple[bool, List[str], Dict]:
     if 'credit_limit' not in data:
         errors.append("Credit limit is required")
     else:
-        is_valid, formatted_value, error = validate_and_format_credit_limit(str(data['credit_limit']))
-        if not is_valid:
-            errors.append(error)
-        else:
-            processed_data['credit_limit'] = Decimal(formatted_value.replace('$', '').replace(',', ''))
+        try:
+            credit_limit = float(str(data['credit_limit']).replace('$', '').replace(',', ''))
+            if credit_limit < Config.MIN_CREDIT_LIMIT:
+                errors.append(f"Credit limit must be at least ${Config.MIN_CREDIT_LIMIT}")
+            else:
+                processed_data['credit_limit'] = credit_limit
+        except ValueError:
+            errors.append("Credit limit must be a valid number")
 
-    # Validate cycle date
+    # Handle billing cycle dates
     cycle_date = data.get('cycle_date')
     if cycle_date is None:
         errors.append("Cycle date is required")
     else:
-        is_valid, error = validate_cycle_date(cycle_date)
-        if not is_valid:
-            errors.append(error)
-        else:
+        try:
             cycle_date = int(cycle_date)
-            start_date, end_date = handle_billing_cycle_dates(cycle_date)
-            processed_data['cycle_start'] = start_date
-            processed_data['cycle_end'] = end_date
+            if not 1 <= cycle_date <= 31:
+                errors.append("Cycle date must be between 1 and 31")
+            else:
+                if cycle_date == 1:
+                    processed_data['cycle_start'] = 1
+                    processed_data['cycle_end'] = 31
+                else:
+                    processed_data['cycle_start'] = cycle_date - 1
+                    processed_data['cycle_end'] = cycle_date - 2 if cycle_date > 2 else 31
+        except ValueError:
+            errors.append("Cycle date must be a valid number between 1 and 31")
 
     return (len(errors) == 0, errors, processed_data)
-
 
 def get_optimal_card(date: datetime, cards: List[CreditCard]) -> Dict:
     """Determines optimal card based on billing cycle."""

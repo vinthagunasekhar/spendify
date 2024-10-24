@@ -30,11 +30,10 @@ def success_response(data, message=None, status=200):
 @bp.route('/api/available_cards', methods=['GET'])
 def get_available_cards():
     """Get list of all available credit cards"""
-    cards = {
-        key: {'name': value, 'id': key}
-        for key, value in Config.AVAILABLE_CARDS.items()
-    }
-    return success_response({'cards': cards})
+    return jsonify({
+        'success': True,
+        'cards': sorted(list(Config.AVAILABLE_CARDS))  # Convert set to sorted list
+    })
 
 
 @bp.route('/api/billing-dates', methods=['GET'])
@@ -68,16 +67,16 @@ def add_card():
         if not data:
             return error_response('No data provided')
 
-        is_valid, errors = validate_card_data(data)
+        is_valid, errors, processed_data = validate_card_data(data)
         if not is_valid:
             return error_response('Validation failed', errors)
 
         new_card = CreditCard(
             user_id=1,  # Hardcoded for now
-            card_type=data['card_type'],
-            credit_limit=float(data['credit_limit']),
-            cycle_start=int(data['cycle_start']),
-            cycle_end=int(data['cycle_end'])
+            card_type=processed_data['card_type'],
+            credit_limit=processed_data['credit_limit'],
+            cycle_start=processed_data['cycle_start'],
+            cycle_end=processed_data['cycle_end']
         )
 
         db.session.add(new_card)
@@ -86,7 +85,6 @@ def add_card():
         card_data = {
             'id': new_card.id,
             'card_type': new_card.card_type,
-            'card_name': new_card.card_name,
             'credit_limit': new_card.credit_limit,
             'cycle_start': new_card.cycle_start,
             'cycle_end': new_card.cycle_end
@@ -94,8 +92,8 @@ def add_card():
         return success_response({'card': card_data}, 'Card added successfully', 201)
 
     except Exception as e:
+        print(f"Error in add_card: {str(e)}")  # For debugging
         return error_response('Server error', [str(e)], 500)
-
 
 @bp.route('/api/cards', methods=['GET'])
 def get_cards():

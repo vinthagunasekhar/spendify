@@ -4,11 +4,14 @@ from config import Config
 
 db = SQLAlchemy()
 
+
 class CreditCard(db.Model):
     """Model for storing credit card information."""
+    __tablename__ = 'credit_card'
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    card_type = db.Column(db.String(20), nullable=False)
+    card_type = db.Column(db.String(50), nullable=False)  # Increased length for longer card names
     credit_limit = db.Column(db.Float, nullable=False)
     cycle_start = db.Column(db.Integer, nullable=False)
     cycle_end = db.Column(db.Integer, nullable=False)
@@ -16,7 +19,8 @@ class CreditCard(db.Model):
 
     @property
     def card_name(self):
-        return Config.AVAILABLE_CARDS.get(self.card_type)
+        return self.card_type  # Simply return the card type as it's already the full name
+
 
 class User(db.Model):
     """Model for storing user information."""
