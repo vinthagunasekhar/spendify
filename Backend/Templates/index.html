@@ -2,93 +2,208 @@
 
 {% block content %}
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Add New Card Section -->
     <div class="bg-white p-6 rounded-lg shadow">
         <h2 class="text-xl font-bold mb-4">Add New Card</h2>
-        <form id="cardForm" class="space-y-4">
+        <form id="cardForm" class="space-y-4" novalidate>
             <div>
-                <label class="block text-sm font-medium">Card Name</label>
-                <input type="text" name="card_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                <label for="card_type" class="block text-sm font-medium">Card Type</label>
+                <select id="card_type" name="card_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                    <option value="">Select a card</option>
+                </select>
+                <p class="text-red-600 text-sm hidden" id="card_type_error"></p>
             </div>
             <div>
-                <label class="block text-sm font-medium">Credit Limit</label>
-                <input type="number" name="credit_limit" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                <label for="credit_limit" class="block text-sm font-medium">Credit Limit</label>
+                <input
+                    type="text"
+                    id="credit_limit"
+                    name="credit_limit"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    pattern="[0-9]*"
+                    required
+                    aria-describedby="credit_limit_error">
+                <p class="text-red-600 text-sm hidden" id="credit_limit_error"></p>
             </div>
             <div>
-                <label class="block text-sm font-medium">Cycle Start Date</label>
-                <input type="number" name="cycle_start" min="1" max="31" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                <label for="cycle_date" class="block text-sm font-medium">Billing Cycle Date</label>
+                <select
+                    id="cycle_date"
+                    name="cycle_date"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    required
+                    aria-describedby="cycle_date_error">
+                    <option value="">Select date</option>
+                </select>
+                <p class="text-red-600 text-sm hidden" id="cycle_date_error"></p>
             </div>
-            <div>
-                <label class="block text-sm font-medium">Cycle End Date</label>
-                <input type="number" name="cycle_end" min="1" max="31" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
-            </div>
-            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Card</button>
+            <div id="form_message" class="hidden rounded-md p-4 mt-4"></div>
+            <button
+                type="submit"
+                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                Add Card
+            </button>
         </form>
     </div>
 
+    <!-- Get Recommendation Section -->
     <div class="bg-white p-6 rounded-lg shadow">
         <h2 class="text-xl font-bold mb-4">Get Recommendation</h2>
-        <form id="recommendationForm" class="space-y-4">
+        <form id="recommendationForm" class="space-y-4" novalidate>
             <div>
-                <label class="block text-sm font-medium">Date</label>
-                <input type="date" name="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                <label for="recommendation_date" class="block text-sm font-medium">Date</label>
+                <input
+                    type="date"
+                    id="recommendation_date"
+                    name="date"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    required>
             </div>
-            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Get Recommendation</button>
+            <button
+                type="submit"
+                class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                Get Recommendation
+            </button>
         </form>
-        <div id="recommendation" class="mt-4"></div>
+        <div id="recommendation" class="mt-4" role="alert" aria-live="polite"></div>
     </div>
 </div>
 
 <script>
+// Utility functions
+const showError = (elementId, message) => {
+    const element = document.getElementById(elementId);
+    element.textContent = message;
+    element.classList.remove('hidden');
+};
+
+const hideError = (elementId) => {
+    const element = document.getElementById(elementId);
+    element.classList.add('hidden');
+};
+
+const showMessage = (type, message) => {
+    const messageDiv = document.getElementById('form_message');
+    messageDiv.className = `rounded-md p-4 mt-4 ${type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+    messageDiv.textContent = message;
+    messageDiv.classList.remove('hidden');
+};
+
+// Initialize form elements
+const initializeForms = async () => {
+    try {
+        // Fetch and populate card types
+        const cardsResponse = await fetch('/api/available_cards');
+        const cardsData = await cardsResponse.json();
+        const cardSelect = document.getElementById('card_type');
+        Object.entries(cardsData.cards).forEach(([value, card]) => {
+            const option = new Option(card.name, value);
+            cardSelect.add(option);
+        });
+
+        // Populate cycle dates
+        const cycleSelect = document.getElementById('cycle_date');
+        for (let i = 1; i <= 31; i++) {
+            cycleSelect.add(new Option(i.toString(), i));
+        }
+    } catch (error) {
+        console.error('Error initializing forms:', error);
+        showMessage('error', 'Error loading form data. Please refresh the page.');
+    }
+};
+
+// Format credit limit input
+document.getElementById('credit_limit').addEventListener('input', async (e) => {
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    if (value) {
+        try {
+            const response = await fetch('/api/validate-credit-limit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credit_limit: value })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                e.target.value = data.formatted_value;
+                hideError('credit_limit_error');
+            } else {
+                showError('credit_limit_error', data.error);
+            }
+        } catch (error) {
+            showError('credit_limit_error', 'Error validating credit limit');
+        }
+    }
+});
+
+// Handle card form submission
 document.getElementById('cardForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData);
 
     try {
-        const response = await fetch('/add_card', {
+        const response = await fetch('/api/cards', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
 
+        const result = await response.json();
         if (response.ok) {
-            alert('Card added successfully!');
+            showMessage('success', 'Card added successfully!');
             e.target.reset();
         } else {
-            const error = await response.json();
-            alert(`Error: ${error.error}`);
+            showMessage('error', result.error);
+            if (result.details) {
+                result.details.forEach(error => {
+                    if (error.includes('card type')) showError('card_type_error', error);
+                    if (error.includes('credit limit')) showError('credit_limit_error', error);
+                    if (error.includes('cycle')) showError('cycle_date_error', error);
+                });
+            }
         }
     } catch (error) {
-        alert('Error adding card');
+        showMessage('error', 'Error adding card. Please try again.');
     }
 });
 
+// Handle recommendation form submission
 document.getElementById('recommendationForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const date = formData.get('date');
 
     try {
-        const response = await fetch(`/get_recommendation?date=${date}`);
+        const response = await fetch(`/api/recommendation?date=${date}`);
         const data = await response.json();
 
+        const recommendationDiv = document.getElementById('recommendation');
         if (response.ok) {
-            const recommendationDiv = document.getElementById('recommendation');
             recommendationDiv.innerHTML = `
                 <div class="p-4 bg-blue-100 rounded-md">
-                    <p class="font-bold">Recommended Card: ${data.recommended_card}</p>
-                    <p>Credit Limit: $${data.credit_limit}</p>
-                    <p>Reason: ${data.reason}</p>
+                    <p class="font-bold">Recommended Card: ${data.data.recommended_card}</p>
+                    <p>Credit Limit: ${data.data.credit_limit}</p>
+                    <p>Reason: ${data.data.reason}</p>
                 </div>
             `;
         } else {
-            alert(`Error: ${data.error}`);
+            recommendationDiv.innerHTML = `
+                <div class="p-4 bg-red-100 text-red-700 rounded-md">
+                    ${data.error}
+                </div>
+            `;
         }
     } catch (error) {
-        alert('Error getting recommendation');
+        document.getElementById('recommendation').innerHTML = `
+            <div class="p-4 bg-red-100 text-red-700 rounded-md">
+                Error getting recommendation. Please try again.
+            </div>
+        `;
     }
 });
+
+// Initialize forms on page load
+document.addEventListener('DOMContentLoaded', initializeForms);
 </script>
 {% endblock %}

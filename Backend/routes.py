@@ -1,50 +1,142 @@
-from flask import Blueprint, render_template, request, jsonify
-from models import db, CreditCard, User
-from utils import get_optimal_card
+from flask import Blueprint, request, jsonify, render_template
 from datetime import datetime
+from models import db, CreditCard
+from utils import validate_card_data, validate_and_format_credit_limit, get_optimal_card
+from config import Config
 
 bp = Blueprint('main', __name__)
 
 
-@bp.route('/', methods=['GET'])
-def index():
-    return render_template('index.html')
+def error_response(message, details=None, status=400):
+    """Helper function for error responses"""
+    return jsonify({
+        'success': False,
+        'error': message,
+        'details': details or []
+    }), status
 
 
-@bp.route('/add_card', methods=['POST'])
+def success_response(data, message=None, status=200):
+    """Helper function for success responses"""
+    response = {
+        'success': True,
+        'data': data
+    }
+    if message:
+        response['message'] = message
+    return jsonify(response), status
+
+
+@bp.route('/api/available_cards', methods=['GET'])
+def get_available_cards():
+    """Get list of all available credit cards"""
+    cards = {
+        key: {'name': value, 'id': key}
+        for key, value in Config.AVAILABLE_CARDS.items()
+    }
+    return success_response({'cards': cards})
+
+
+@bp.route('/api/billing-dates', methods=['GET'])
+def get_billing_dates():
+    """Get list of available billing dates (1-31)"""
+    return success_response({'dates': list(range(1, 32))})
+
+
+@bp.route('/api/validate-credit-limit', methods=['POST'])
+def validate_credit_limit():
+    """Validate and format credit limit input"""
+    data = request.get_json()
+    if not data:
+        return error_response('No data provided')
+
+    value = data.get('credit_limit', '')
+    is_valid, formatted_value, error = validate_and_format_credit_limit(str(value))
+
+    return success_response({
+        'is_valid': is_valid,
+        'formatted_value': formatted_value if is_valid else '',
+        'error': error if not is_valid else None
+    })
+
+
+@bp.route('/api/cards', methods=['POST'])
 def add_card():
+    """Add a new credit card"""
     try:
-        data = request.json
+        data = request.get_json()
+        if not data:
+            return error_response('No data provided')
+
+        is_valid, errors = validate_card_data(data)
+        if not is_valid:
+            return error_response('Validation failed', errors)
+
         new_card = CreditCard(
-            user_id=1,  # Hardcoded for now, implement user authentication later
-            card_name=data['card_name'],
+            user_id=1,  # Hardcoded for now
+            card_type=data['card_type'],
             credit_limit=float(data['credit_limit']),
             cycle_start=int(data['cycle_start']),
             cycle_end=int(data['cycle_end'])
         )
+
         db.session.add(new_card)
         db.session.commit()
-        return jsonify({'message': 'Card added successfully'}), 201
+
+        card_data = {
+            'id': new_card.id,
+            'card_type': new_card.card_type,
+            'card_name': new_card.card_name,
+            'credit_limit': new_card.credit_limit,
+            'cycle_start': new_card.cycle_start,
+            'cycle_end': new_card.cycle_end
+        }
+        return success_response({'card': card_data}, 'Card added successfully', 201)
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return error_response('Server error', [str(e)], 500)
 
 
-@bp.route('/get_recommendation', methods=['GET'])
+@bp.route('/api/cards', methods=['GET'])
+def get_cards():
+    """Get all cards for the current user"""
+    try:
+        cards = CreditCard.query.filter_by(user_id=1).all()
+        cards_data = [{
+            'id': card.id,
+            'card_type': card.card_type,
+            'card_name': card.card_name,
+            'credit_limit': card.credit_limit,
+            'cycle_start': card.cycle_start,
+            'cycle_end': card.cycle_end
+        } for card in cards]
+        return success_response({'cards': cards_data})
+    except Exception as e:
+        return error_response('Server error', [str(e)], 500)
+
+
+@bp.route('/', methods=['GET'])
+def index():
+    """Render the main page"""
+    return render_template('index.html')
+
+
+@bp.route('/api/recommendation', methods=['GET'])
 def get_recommendation():
-    date_str = request.args.get('date')
-    if not date_str:
-        date = datetime.now()
-    else:
-        date = datetime.strptime(date_str, '%Y-%m-%d')
+    """Get card recommendation for a specific date"""
+    try:
+        date_str = request.args.get('date')
+        date = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.now()
 
-    # Hardcoded user_id=1 for now
-    cards = CreditCard.query.filter_by(user_id=1).all()
-    if not cards:
-        return jsonify({'error': 'No cards found'}), 404
+        cards = CreditCard.query.filter_by(user_id=1).all()
+        if not cards:
+            return error_response('No cards found', status=404)
 
-    recommendation = get_optimal_card(date, cards)
-    return jsonify({
-        'recommended_card': recommendation['card'].card_name,
-        'credit_limit': recommendation['card'].credit_limit,
-        'reason': recommendation['reason']
-    })
+        recommendation = get_optimal_card(date, cards)
+        return success_response({
+            'recommended_card': recommendation['card'].card_name,
+            'credit_limit': recommendation['card'].credit_limit,
+            'reason': recommendation['reason']
+        })
+    except Exception as e:
+        return error_response('Server error', [str(e)], 500)
