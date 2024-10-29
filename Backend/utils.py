@@ -19,18 +19,6 @@ def validate_and_format_credit_limit(value: str) -> Tuple[bool, str, str]:
     return True, "${:,.0f}".format(amount), ""
 
 
-def validate_billing_date(date_value: str) -> Tuple[bool, str]:
-    """Validates a billing date value."""
-    if not str(date_value).isdigit():
-        return False, "Billing date must be a valid number"
-
-    date_int = int(date_value)
-    if not 1 <= date_int <= 31:
-        return False, "Billing date must be between 1 and 31"
-
-    return True, ""
-
-
 def validate_billing_dates(start_date: int, end_date: int) -> Tuple[bool, str]:
     """Validates the billing start and end dates."""
     if not (1 <= start_date <= 31 and 1 <= end_date <= 31):
@@ -94,25 +82,63 @@ def validate_card_data(data: dict) -> tuple[bool, list[str], dict]:
     return (len(errors) == 0, errors, processed_data)
 
 
+def calculate_days_until_due(purchase_day: int, billing_start: int, billing_end: int) -> int:
+    """
+    Calculate the number of days until payment is due from the purchase date.
+    Assumes ~30 day billing cycle and ~21 day grace period.
+    """
+    AVERAGE_MONTH_DAYS = 30
+    GRACE_PERIOD_DAYS = 21
+
+    if billing_start <= billing_end:
+        # Normal billing cycle within same month
+        if billing_start <= purchase_day <= billing_end:
+            return GRACE_PERIOD_DAYS + (billing_end - purchase_day)
+        return GRACE_PERIOD_DAYS + AVERAGE_MONTH_DAYS + (billing_end - purchase_day)
+    else:
+        # Billing cycle crosses month boundary
+        if purchase_day >= billing_start or purchase_day <= billing_end:
+            if purchase_day >= billing_start:
+                # Purchase in current month
+                return GRACE_PERIOD_DAYS + (AVERAGE_MONTH_DAYS - purchase_day + billing_end)
+            else:
+                # Purchase in next month
+                return GRACE_PERIOD_DAYS + (billing_end - purchase_day)
+        return GRACE_PERIOD_DAYS + AVERAGE_MONTH_DAYS + (billing_end - purchase_day)
+
+
 def get_optimal_card(date: datetime, cards: List[CreditCard]) -> Dict:
-    """Determines optimal card based on billing cycle."""
+    """
+    Determines optimal card based on maximizing time until payment is due.
+    Returns card with the longest time until payment is due.
+    If multiple cards have the same days until due, returns the one with highest credit limit.
+    """
+    if not cards:
+        return None
+
     day_of_month = date.day
+    cards_with_days = []
 
     for card in cards:
-        if card.billing_start_date <= card.billing_end_date:
-            if card.billing_start_date <= day_of_month <= card.billing_end_date:
-                return {
-                    'card': card,
-                    'reason': f'Best timing: falls within {card.card_name} billing cycle'
-                }
-        elif day_of_month >= card.billing_start_date or day_of_month <= card.billing_end_date:
-            return {
-                'card': card,
-                'reason': f'Best timing: falls within {card.card_name} billing cycle'
-            }
+        days_until_due = calculate_days_until_due(
+            day_of_month,
+            card.billing_start_date,
+            card.billing_end_date
+        )
+        cards_with_days.append((card, days_until_due))
 
-    highest_limit_card = max(cards, key=lambda x: x.credit_limit)
+    # Sort by days until due (descending) and credit limit (descending)
+    sorted_cards = sorted(
+        cards_with_days,
+        key=lambda x: (x[1], x[0].credit_limit),
+        reverse=True
+    )
+
+    optimal_card = sorted_cards[0][0]
+    days_to_pay = sorted_cards[0][1]
+
     return {
-        'card': highest_limit_card,
-        'reason': 'Fallback: highest credit limit available'
+        'card': optimal_card,
+        'reason': (f'Best timing: {days_to_pay} days until payment is due '
+                   f'(statement closes on the {optimal_card.billing_end_date}th)')
     }
