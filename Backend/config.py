@@ -16,4 +16,4 @@ class Config:
     }
 
     # Minimum credit limit allowed
-    MIN_CREDIT_LIMIT = 100
+    MIN_CREDIT_LIMIT = 500

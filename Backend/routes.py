@@ -32,7 +32,7 @@ def get_available_cards():
     """Get list of all available credit cards"""
     return jsonify({
         'success': True,
-        'cards': sorted(list(Config.AVAILABLE_CARDS))  # Convert set to sorted list
+        'cards': sorted(list(Config.AVAILABLE_CARDS))
     })
 
 
@@ -73,10 +73,10 @@ def add_card():
 
         new_card = CreditCard(
             user_id=1,  # Hardcoded for now
-            card_type=processed_data['card_type'],
+            card_name=processed_data['card_name'],
             credit_limit=processed_data['credit_limit'],
-            cycle_start=processed_data['cycle_start'],
-            cycle_end=processed_data['cycle_end']
+            billing_start_date=processed_data['billing_start_date'],
+            billing_end_date=processed_data['billing_end_date']
         )
 
         db.session.add(new_card)
@@ -84,16 +84,77 @@ def add_card():
 
         card_data = {
             'id': new_card.id,
-            'card_type': new_card.card_type,
+            'card_name': new_card.card_name,
             'credit_limit': new_card.credit_limit,
-            'cycle_start': new_card.cycle_start,
-            'cycle_end': new_card.cycle_end
+            'billing_start_date': new_card.billing_start_date,
+            'billing_end_date': new_card.billing_end_date
         }
         return success_response({'card': card_data}, 'Card added successfully', 201)
 
     except Exception as e:
         print(f"Error in add_card: {str(e)}")  # For debugging
         return error_response('Server error', [str(e)], 500)
+
+
+@bp.route('/api/cards/<int:card_id>', methods=['PUT'])
+def edit_card(card_id):
+    """Edit an existing credit card"""
+    try:
+        # Find the card
+        card = CreditCard.query.filter_by(id=card_id, user_id=1).first()
+        if not card:
+            return error_response('Card not found', status=404)
+
+        # Validate the update data
+        data = request.get_json()
+        if not data:
+            return error_response('No data provided')
+
+        is_valid, errors, processed_data = validate_card_data(data)
+        if not is_valid:
+            return error_response('Validation failed', errors)
+
+        # Update the card
+        card.card_name = processed_data['card_name']
+        card.credit_limit = processed_data['credit_limit']
+        card.billing_start_date = processed_data['billing_start_date']
+        card.billing_end_date = processed_data['billing_end_date']
+
+        db.session.commit()
+
+        card_data = {
+            'id': card.id,
+            'card_name': card.card_name,
+            'credit_limit': card.credit_limit,
+            'billing_start_date': card.billing_start_date,
+            'billing_end_date': card.billing_end_date
+        }
+        return success_response({'card': card_data}, 'Card updated successfully')
+
+    except Exception as e:
+        print(f"Error in edit_card: {str(e)}")  # For debugging
+        return error_response('Server error', [str(e)], 500)
+
+
+@bp.route('/api/cards/<int:card_id>', methods=['DELETE'])
+def delete_card(card_id):
+    """Delete a credit card"""
+    try:
+        # Find the card
+        card = CreditCard.query.filter_by(id=card_id, user_id=1).first()
+        if not card:
+            return error_response('Card not found', status=404)
+
+        # Delete the card
+        db.session.delete(card)
+        db.session.commit()
+
+        return success_response({}, 'Card deleted successfully')
+
+    except Exception as e:
+        print(f"Error in delete_card: {str(e)}")  # For debugging
+        return error_response('Server error', [str(e)], 500)
+
 
 @bp.route('/api/cards', methods=['GET'])
 def get_cards():
@@ -102,11 +163,10 @@ def get_cards():
         cards = CreditCard.query.filter_by(user_id=1).all()
         cards_data = [{
             'id': card.id,
-            'card_type': card.card_type,
             'card_name': card.card_name,
             'credit_limit': card.credit_limit,
-            'cycle_start': card.cycle_start,
-            'cycle_end': card.cycle_end
+            'billing_start_date': card.billing_start_date,
+            'billing_end_date': card.billing_end_date
         } for card in cards]
         return success_response({'cards': cards_data})
     except Exception as e:

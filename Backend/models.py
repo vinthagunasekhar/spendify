@@ -11,15 +11,11 @@ class CreditCard(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    card_type = db.Column(db.String(50), nullable=False)  # Increased length for longer card names
+    card_name = db.Column(db.String(50), nullable=False)
     credit_limit = db.Column(db.Float, nullable=False)
-    cycle_start = db.Column(db.Integer, nullable=False)
-    cycle_end = db.Column(db.Integer, nullable=False)
+    billing_start_date = db.Column(db.Integer, nullable=False)
+    billing_end_date = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    @property
-    def card_name(self):
-        return self.card_type  # Simply return the card type as it's already the full name
 
 
 class User(db.Model):
