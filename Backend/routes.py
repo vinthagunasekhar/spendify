@@ -105,23 +105,58 @@ def edit_card(card_id):
         if not card:
             return error_response('Card not found', status=404)
 
-        # Validate the update data
+        # Get update data
         data = request.get_json()
         if not data:
             return error_response('No data provided')
 
-        is_valid, errors, processed_data = validate_card_data(data)
-        if not is_valid:
+        # Validate and update only the provided fields
+        update_data = {}
+        errors = []
+
+        if 'card_name' in data:
+            if data['card_name'] in Config.AVAILABLE_CARDS:
+                update_data['card_name'] = data['card_name']
+            else:
+                errors.append(f"Invalid card name. Must be one of: {', '.join(sorted(Config.AVAILABLE_CARDS))}")
+
+        if 'credit_limit' in data:
+            try:
+                credit_limit = float(str(data['credit_limit']).replace('$', '').replace(',', ''))
+                if credit_limit < Config.MIN_CREDIT_LIMIT:
+                    errors.append(f"Credit limit must be at least ${Config.MIN_CREDIT_LIMIT}")
+                else:
+                    update_data['credit_limit'] = credit_limit
+            except ValueError:
+                errors.append("Credit limit must be a valid number")
+
+        if 'billing_start_date' in data or 'billing_end_date' in data:
+            # If updating billing dates, need both start and end
+            start_date = data.get('billing_start_date', card.billing_start_date)
+            end_date = data.get('billing_end_date', card.billing_end_date)
+
+            try:
+                start_date = int(start_date)
+                end_date = int(end_date)
+
+                if not (1 <= start_date <= 31 and 1 <= end_date <= 31):
+                    errors.append("Billing dates must be between 1 and 31")
+                else:
+                    update_data['billing_start_date'] = start_date
+                    update_data['billing_end_date'] = end_date
+            except ValueError:
+                errors.append("Billing dates must be valid numbers between 1 and 31")
+
+        if errors:
             return error_response('Validation failed', errors)
 
-        # Update the card
-        card.card_name = processed_data['card_name']
-        card.credit_limit = processed_data['credit_limit']
-        card.billing_start_date = processed_data['billing_start_date']
-        card.billing_end_date = processed_data['billing_end_date']
+        # Update only the provided fields
+        for key, value in update_data.items():
+            setattr(card, key, value)
 
         db.session.commit()
 
+        # Return updated card data
         card_data = {
             'id': card.id,
             'card_name': card.card_name,
@@ -133,6 +168,59 @@ def edit_card(card_id):
 
     except Exception as e:
         print(f"Error in edit_card: {str(e)}")  # For debugging
+        return error_response('Server error', [str(e)], 500)
+
+# Also add a route to get available days
+@bp.route('/api/available-days', methods=['GET'])
+def get_available_days():
+    """Get list of available days (1-31)"""
+    return success_response({
+        'days': list(range(1, 32))
+    })
+
+
+@bp.route('/api/optimal-card-for-day', methods=['GET'])
+def get_optimal_card_for_day():
+    """Get card recommendation for a specific day of month"""
+    try:
+        # Get day from query parameters, default to current day
+        day = request.args.get('day')
+
+        if not day:
+            return error_response('Day parameter is required')
+
+        try:
+            day = int(day)
+            if not 1 <= day <= 31:
+                return error_response('Day must be between 1 and 31')
+        except ValueError:
+            return error_response('Invalid day value')
+
+        # Get all cards for current user
+        cards = CreditCard.query.filter_by(user_id=1).all()
+        if not cards:
+            return error_response('No cards found', status=404)
+
+        # Create a datetime object with the specified day
+        current_date = datetime.now()
+        target_date = current_date.replace(day=day)
+
+        recommendation = get_optimal_card(target_date, cards)
+
+        # Enhanced response with more details
+        return success_response({
+            'day': day,
+            'recommended_card': recommendation['card'].card_name,
+            'credit_limit': recommendation['card'].credit_limit,
+            'billing_cycle': {
+                'start_date': recommendation['card'].billing_start_date,
+                'end_date': recommendation['card'].billing_end_date
+            },
+            'reason': recommendation['reason']
+        })
+
+    except Exception as e:
+        print(f"Error in get_optimal_card_for_day: {str(e)}")  # For debugging
         return error_response('Server error', [str(e)], 500)
 
 
