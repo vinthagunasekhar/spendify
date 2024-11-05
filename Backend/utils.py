@@ -23,45 +23,42 @@ def validate_and_format_credit_limit(value: str) -> Tuple[bool, str, str]:
     return True, "${:,.0f}".format(amount), ""
 
 
-def validate_billing_dates(start_date: int = None, end_date: int = None) -> Tuple[bool, int, str]:
+def validate_billing_dates(start_date: int, end_date: int) -> Tuple[bool, str]:
     """
-    Validates and processes billing cycle dates.
-    If start_date is provided, calculates end_date (day before).
-    If end_date is provided, calculates start_date (day after).
-    If both provided, validates they form a valid cycle.
+    Validates the billing start and end dates.
+    Rules:
+    1. Both dates must be between 1 and 31
+    2. End date must be the day before start date (except for start=1, end=31)
 
     Returns:
-    - bool: Is valid
-    - int: Calculated companion date (end_date if start provided, start_date if end provided)
-    - str: Error message if any
+    Tuple[bool, str]: (is_valid, error_message)
     """
-    # Validate input ranges
-    if start_date and not (1 <= start_date <= 31):
-        return False, None, "Start date must be between 1 and 31"
-    if end_date and not (1 <= end_date <= 31):
-        return False, None, "End date must be between 1 and 31"
+    # Check if dates are in valid range (1-31)
+    if not (1 <= start_date <= 31 and 1 <= end_date <= 31):
+        return False, "Billing dates must be between 1 and 31"
 
-    # Case 1: Only start_date provided
-    if start_date and not end_date:
-        calculated_end_date = start_date - 1 if start_date > 1 else 31
-        return True, calculated_end_date, ""
+    # Special case: Start date 1 can only have end date 31
+    if start_date == 1:
+        if end_date != 31:
+            return False, "For start date 1, end date must be 31"
+        return True, ""
+    if start_date == 31:
+        if end_date != 30:
+            return False, "For start date 31, end date must be 30"
+        return True, ""
 
-    # Case 2: Only end_date provided
-    if end_date and not start_date:
-        calculated_start_date = end_date + 1 if end_date < 31 else 1
-        return True, calculated_start_date, ""
+    # Special case: End date 31 can only have start date 1
+    if end_date == 31:
+        if start_date != 1:
+            return False, "For end date 31, start date must be 1"
+        return True, ""
 
-    # Case 3: Both dates provided
-    if start_date and end_date:
-        # Check if dates are adjacent
-        if start_date == 1 and end_date == 31:
-            return True, None, ""
-        if start_date > 1 and end_date == start_date - 1:
-            return True, None, ""
+    # For all other cases, end_date must be start_date - 1
+    if end_date != start_date - 1:
+        return False, f"For start date {start_date}, end date must be {start_date - 1}"
 
-        return False, None, f"Billing dates must be adjacent. For start date {start_date}, end date should be {start_date - 1}"
+    return True, ""
 
-    return False, None, "At least one date must be provided"
 
 def validate_card_data(data: dict) -> tuple[bool, list[str], dict]:
     """
@@ -107,16 +104,16 @@ def validate_card_data(data: dict) -> tuple[bool, list[str], dict]:
             end_date = int(billing_end)
 
             is_valid, error_msg = validate_billing_dates(start_date, end_date)
+            processed_data['billing_start_date'] = start_date
+            processed_data['billing_end_date'] = end_date
             if not is_valid:
                 errors.append(error_msg)
-            else:
-                processed_data['billing_start_date'] = start_date
-                processed_data['billing_end_date'] = end_date
         except ValueError:
             errors.append("Billing dates must be valid numbers between 1 and 31")
 
     return (len(errors) == 0, errors, processed_data)
 
+#Need to validate the below 2 functions...
 
 def calculate_days_until_due(purchase_day: int, billing_start: int, billing_end: int) -> int:
     """

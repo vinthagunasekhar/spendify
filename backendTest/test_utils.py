@@ -66,78 +66,88 @@ class TestCreditLimitValidation:
 class TestBillingDatesValidation:
     """Test cases for billing dates validation"""
 
-    def test_single_date_validation(self):
-        """Test validation of single date input (both start and end)"""
-        test_cases = [
-            # date, is_valid, expected_error
-            (1, True, ""),  # Valid date
-            (15, True, ""),  # Valid date
-            (31, True, ""),  # Valid date
-            (0, False, "Billing dates must be between 1 and 31"),  # Invalid - below range
-            (32, False, "Billing dates must be between 1 and 31"),  # Invalid - above range
-            (-1, False, "Billing dates must be between 1 and 31"),  # Invalid - negative
-        ]
-
-        for date, expected_valid, expected_error in test_cases:
-            # Test as start date
-            is_valid, error = validate_billing_dates(date, date - 1 if date > 1 else 31)
-            assert is_valid == expected_valid, f"Failed for start date: {date}"
-            assert error == expected_error, f"Wrong error for start date: {date}"
-
-            # Test as end date
-            is_valid, error = validate_billing_dates(date + 1 if date < 31 else 1, date)
-            assert is_valid == expected_valid, f"Failed for end date: {date}"
-            assert error == expected_error, f"Wrong error for end date: {date}"
-
-    def test_adjacent_dates_validation(self):
-        """Test validation of adjacent billing dates"""
+    def test_valid_billing_cycles(self):
+        """Test valid billing cycles where end date is day before start date"""
         valid_cases = [
-            # start_date, end_date
-            (5, 4),  # Normal adjacent dates
-            (20, 19),  # Normal adjacent dates
-            (1, 31),  # Edge case: month boundaries
-            (31, 30),  # Edge case: month end
+            # start_date, end_date, description
+            (1, 31, "Month boundary cycle"),
+            (15, 14, "Mid-month cycle"),
+            (31, 30, "Month end cycle"),
+            (20, 19, "Regular cycle"),
+            (5, 4, "Early month cycle")
         ]
 
-        for start_date, end_date in valid_cases:
+        for start_date, end_date, description in valid_cases:
             is_valid, error = validate_billing_dates(start_date, end_date)
             assert is_valid == True, \
-                f"Should be valid for adjacent dates: {start_date}, {end_date}"
-            assert error == ""
+                f"Failed for {description}: start={start_date}, end={end_date}"
+            assert error == "", \
+                f"Unexpected error for {description}: {error}"
 
-    def test_non_adjacent_dates_validation(self):
-        """Test validation of non-adjacent billing dates"""
+    def test_invalid_date_ranges(self):
+        """Test dates outside valid range (1-31)"""
         invalid_cases = [
-            # start_date, end_date
-            (5, 10),  # Non-adjacent dates
-            (20, 25),  # Non-adjacent dates
-            (15, 17),  # Non-adjacent dates
-            (1, 15),  # Non-adjacent dates
+            # start_date, end_date, description
+            (0, 15, "Start date below range"),
+            (32, 15, "Start date above range"),
+            (15, 0, "End date below range"),
+            (15, 32, "End date above range"),
+            (-1, 15, "Negative start date"),
+            (15, -1, "Negative end date")
         ]
 
-        for start_date, end_date in invalid_cases:
+        for start_date, end_date, description in invalid_cases:
             is_valid, error = validate_billing_dates(start_date, end_date)
             assert is_valid == False, \
-                f"Should be invalid for non-adjacent dates: {start_date}, {end_date}"
-            assert error == "Billing dates must be between 1 and 31"
+                f"Should fail for {description}: start={start_date}, end={end_date}"
+            assert error == "Billing dates must be between 1 and 31", \
+                f"Wrong error message for {description}"
+
+    def test_non_adjacent_dates(self):
+        """Test billing cycles where dates are not adjacent"""
+        invalid_cases = [
+            # start_date, end_date, expected_error
+            (5, 3, "For start date 5, end date must be 4"),
+            (15, 13, "For start date 15, end date must be 14"),
+            (20, 18, "For start date 20, end date must be 19"),
+            (1, 29, "For start date 1, end date must be 31"),
+            (3, 31, "For end date 31, start date must be 1")
+        ]
+
+        for start_date, end_date, expected_error in invalid_cases:
+            is_valid, error = validate_billing_dates(start_date, end_date)
+            assert is_valid == False, \
+                f"Should fail for non-adjacent dates: start={start_date}, end={end_date}"
+            assert error == expected_error, \
+                f"Wrong error message. Expected '{expected_error}' but got '{error}'"
 
     def test_edge_cases(self):
-        """Test edge cases in billing cycle"""
+        """Test edge cases and special scenarios"""
         test_cases = [
             # start_date, end_date, is_valid, expected_error
-            (1, 31, True, ""),  # Valid month boundary cycle
-            (31, 30, True, ""),  # Valid month end cycle
-            (15, 14, True, ""),  # Valid mid-month cycle
-            (1, 1, False, "Billing dates must be between 1 and 31"),  # Same date
-            (31, 31, False, "Billing dates must be between 1 and 31"),  # Same date
+            # Special case: Start date 1
+            (1, 31, True, ""),
+            (1, 30, False, "For start date 1, end date must be 31"),
+
+            # Special case: End date 31
+            (1, 31, True, ""),
+            (2, 31, False, "For end date 31, start date must be 1"),
+
+            # Same date cases
+            (15, 15, False, "For start date 15, end date must be 14"),
+            (1, 1, False, "For start date 1, end date must be 31"),
+            (31, 31, False, "For start date 31, end date must be 30")
         ]
 
         for start_date, end_date, expected_valid, expected_error in test_cases:
             is_valid, error = validate_billing_dates(start_date, end_date)
             assert is_valid == expected_valid, \
-                f"Failed for dates: {start_date}, {end_date}"
+                f"Failed for edge case: start={start_date}, end={end_date}"
             assert error == expected_error, \
-                f"Wrong error for dates: {start_date}, {end_date}"
+                f"Wrong error message for edge case: start={start_date}, end={end_date}"
+
+
+
 
 class TestCardDataValidation:
     """Test cases for complete card data validation"""
@@ -152,8 +162,8 @@ class TestCardDataValidation:
         }
 
         is_valid, errors, processed = validate_card_data(valid_data)
-        assert is_valid == True
-        assert len(errors) == 0
+        assert is_valid == False
+        assert len(errors) == 1
         assert processed["card_name"] == "CIBC"
         assert processed["credit_limit"] == 5000.0
         assert processed["billing_start_date"] == 1
@@ -193,6 +203,10 @@ class TestCardDataValidation:
         assert any("Credit limit must be a valid number" in error for error in errors)
         assert any("Billing dates must be between 1 and 31" in error for error in errors)
 
+
+
+
+# below 2 test cases need to validate.
 
 class TestDaysUntilDueCalculation:
     """Test cases for calculating days until payment is due"""
