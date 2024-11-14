@@ -1,2 +1,2 @@
-# spendify
-A project that works around credit cards.
+# Spendify Backend
+This Repo is mainly for Spendify application.
