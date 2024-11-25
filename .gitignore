@@ -26,15 +26,14 @@ venv/
 ENV/
 env/
 .env/
+/alembic/env.py
 
-# IDE - PyCharm
+# IDE - PyCharm & VS Code
 .idea/
 *.iml
 *.iws
 *.ipr
 .idea_modules/
-
-# VS Code (in case any team member uses it)
 .vscode/
 *.code-workspace
 
@@ -57,6 +56,7 @@ coverage.xml
 
 # PostgreSQL
 *.sql
+!init.sql     # Don't ignore database initialization scripts
 *.dump
 *.dmp
 postgres-data/
@@ -71,19 +71,8 @@ yarn-error.log*
 # System Files
 .DS_Store
 Thumbs.db
-
-# Alembic migrations (don't ignore these, just here for reference)
-# alembic/versions/*
-
-# Docker
-docker-compose.override.yml
-.docker/
-
-# Testing
-.pytest_cache/
-.coverage
-coverage.xml
-htmlcov/
+*.swp
+*.swo
 
 # Cache
 .mypy_cache/
@@ -91,14 +80,12 @@ htmlcov/
 dmypy.json
 .pyre/
 .pytype/
+__pycache__/
+.pytest_cache/
 
 # Documentation
 docs/_build/
 docs/api/
-
-# Dependencies
-poetry.lock  # If using poetry and want to commit this, remove this line
-requirements.txt  # If using pip and want to commit this, remove this line
 
 # Local development
 local_settings.py
