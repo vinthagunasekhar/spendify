@@ -1,19 +1,18 @@
-# app/models/base.py
 from datetime import datetime
 from sqlalchemy import Column, Integer, DateTime
 from sqlalchemy.sql import func
-from app.db.session import Base
-
+from app.db.base_class import Base  # Changed this line
 
 class BaseModel(Base):
     """
     Base model for other database models to inherit from.
-    Provides common columns:
-    - id: Primary key
-    - created_at: Timestamp when record was created
-    - updated_at: Timestamp when record was last updated
+    Think of this as a template for all our database tables.
+    Every table will automatically get:
+    - An ID column that auto-increments
+    - A creation timestamp
+    - An update timestamp that changes automatically
     """
-    __abstract__ = True  # Tells SQLAlchemy not to create a table for this model
+    __abstract__ = True
 
     id = Column(
         Integer,
@@ -24,13 +23,13 @@ class BaseModel(Base):
 
     created_at = Column(
         DateTime(timezone=True),
-        server_default=func.now(),  # Sets default to current timestamp
+        server_default=func.now(),  # When a record is created, set to current time
         nullable=False
     )
 
     updated_at = Column(
         DateTime(timezone=True),
-        server_default=func.now(),  # Sets initial value
-        onupdate=func.now(),  # Updates timestamp on each update
+        server_default=func.now(),  # Initially set to creation time
+        onupdate=func.now(),     # Automatically updates when record changes
         nullable=False
     )
