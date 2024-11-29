@@ -1,4 +1,4 @@
-# app/schemas/base.py
+# app/schemas/base.py.py
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional, Generic, TypeVar, Any, Dict, List
