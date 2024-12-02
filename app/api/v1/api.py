@@ -1,6 +1,6 @@
 # app/api/v1/api.py
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth  # We'll create these next
+from app.api.v1.endpoints import health, auth, creditcard  # We'll create these next
 
 # Create main v1 router
 router = APIRouter()
@@ -18,4 +18,9 @@ router.include_router(
     tags=["Authentication"]
 )
 
+router.include_router(
+    creditcard.router,
+    prefix="/creditcard",
+    tags=["Credit Card"]
+)
 # Add more routers as needed for your specific endpoints

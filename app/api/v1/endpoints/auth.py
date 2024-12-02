@@ -1,5 +1,3 @@
-# app/api/v1/endpoints/auth.py
-
 from typing import Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -7,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.db.session import get_db
 from app.models.user import User
-from app.models.token_blacklist import BlacklistedToken
+from app.models.token_blacklist import TokenBlacklist
 from app.schemas.user import (
     UserSignInRequest,
     UserSignInResponse,
@@ -26,7 +24,7 @@ from app.core.config import settings
 import logging
 
 # Set up logging for the authentication module
-logger = logging.getLogger(__name__)
+#logger = logging.getLogger(__name__)
 
 # Create router instance
 router = APIRouter()

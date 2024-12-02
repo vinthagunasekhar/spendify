@@ -3,7 +3,7 @@ from app.models.base import BaseModel
 from datetime import datetime
 
 
-class BlacklistedToken(BaseModel):
+class TokenBlacklist(BaseModel):
     """
     Model for storing invalidated JWT tokens in PostgreSQL.
     Each entry represents a token that has been invalidated through user logout.
