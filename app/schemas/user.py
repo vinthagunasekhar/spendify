@@ -35,3 +35,50 @@ class UserResponse(BaseSchema):
 
 class UserSignUpResponse(ResponseSchema[UserResponse]):
     pass
+class UserSignInRequest(BaseModel):
+    """
+    Schema for user sign in request.
+    Only requires email and password.
+    """
+    email: EmailStr
+    password: str
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "email": "user@example.com",
+                "password": "yourpassword123"
+            }
+        }
+    }
+
+class Token(BaseModel):
+    """
+    Schema for JWT token response.
+    Includes both access token and token type.
+    """
+    access_token: str
+    token_type: str = "bearer"  # token type is always bearer
+
+
+class UserSignInResponse(ResponseSchema[Token]):
+    """
+    Schema for successful user signin response.
+    Wraps the token schema in our standard response format.
+    """
+    pass
+
+class SignOutResponse(ResponseSchema):
+    """
+    Response schema for sign out endpoint.
+    Inherits from base ResponseSchema for consistency.
+    """
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "message": "You've successfully signed out. See you again soon! 👋",
+                "data": None
+            }
+        }
