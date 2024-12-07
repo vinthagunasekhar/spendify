@@ -6,7 +6,7 @@ from jose import jwt, JWTError
 from app.db.session import get_db
 from app.core.config import settings
 from app.models.user import User
-from app.models.token_blacklist import TokenBlacklist  # Using consistent model name
+from app.models.token_blacklist import TokenBlacklist
 from datetime import datetime
 
 # Define the OAuth2 scheme with the correct signin endpoint

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, SmallInteger
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, SmallInteger, Boolean
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 from sqlalchemy.sql import func
@@ -14,6 +14,7 @@ class CreditCard(BaseModel):
     credit_limit = Column(Integer, nullable=False)
     billing_start_date = Column(SmallInteger, nullable=False)
     billing_end_date = Column(SmallInteger, nullable=False)
+    status = Column(Boolean, nullable=False, default=True)
 
     user = relationship("User", back_populates="credit_cards")
 

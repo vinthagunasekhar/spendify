@@ -1,5 +1,3 @@
-# app/api/v1/endpoints/auth.py
-
 from typing import Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -7,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.db.session import get_db
 from app.models.user import User
-from app.models.token_blacklist import BlacklistedToken
+from app.models.token_blacklist import TokenBlacklist
 from app.schemas.user import (
     UserSignInRequest,
     UserSignInResponse,
@@ -180,7 +178,8 @@ async def signin(
             message="Welcome back! You've successfully signed in",
             data=Token(
                 access_token=access_token,
-                token_type="bearer"
+                token_type="Bearer",
+                username=user.user_name
             )
         )
 
