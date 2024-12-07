@@ -59,7 +59,7 @@ class Token(BaseModel):
     Includes both access token and token type.
     """
     access_token: str
-    token_type: str = "bearer"  # token type is always bearer
+    token_type: str = "Bearer"  # token type is always Bearer
 
 
 class UserSignInResponse(ResponseSchema[Token]):

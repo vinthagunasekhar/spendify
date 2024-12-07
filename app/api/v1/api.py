@@ -1,6 +1,6 @@
 # app/api/v1/api.py
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, creditcard  # We'll create these next
+from app.api.v1.endpoints import health, auth, creditcard
 
 # Create main v1 router
 router = APIRouter()

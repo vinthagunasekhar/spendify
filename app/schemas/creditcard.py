@@ -3,6 +3,7 @@ from app.schemas.base import BaseSchema, ResponseSchema
 from typing import Optional, Dict
 from app.core.constants import CreditCardCompany
 import re
+from datetime import datetime
 
 class CreditCardCreate(BaseModel):
     '''
@@ -161,9 +162,12 @@ class CreditCardResponse(BaseSchema):
     billing_start_date: int
     billing_end_date: int
     status: bool
-    user_id: int  # Added to show which user owns this card
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
+        from_attributes = True
         json_schema_extra = {
             "example": {
                 "id": 1,
@@ -206,3 +210,109 @@ class CreditCardCreateResponse(ResponseSchema[CreditCardResponse]):
                 }
             }
         }
+
+class CreditCardEdit(BaseModel):
+    '''
+    Schema for editing credit card details.
+    Only allows updating credit limit and billing dates.
+    This schema enforces our business rule that card names cannot be changed while editing credit card details.
+    '''
+    credit_limit: Optional[int]= Field(
+        None,
+        ge=500,
+        description="Credit limit of the credit card(must be minimum 500 and should contains only numbers)",
+        json_schema_extra={
+            "error_messages": {
+                "type_error": "Credit limit must be a whole number.",
+                "ge": "Credit limit must be minimum 500."
+            }
+        }
+    )
+    billing_start_date: Optional[int] = Field(
+        None,
+        ge=1,
+        le=31,
+        description="New billing cycle start date (1-31)",
+        json_schema_extra={
+            "error_messages": {
+                "type_error": "Billing start date must be a number",
+                "ge": "Billing start date must be between 1 and 31",
+                "le": "Billing start date must be between 1 and 31"
+            }
+        }
+    )
+
+    billing_end_date: Optional[int] = Field(
+        None,
+        ge=1,
+        le=31,
+        description="New billing cycle end date (1-31)",
+        json_schema_extra={
+            "error_messages": {
+                "type_error": "Billing end date must be a number",
+                "ge": "Billing end date must be between 1 and 31",
+                "le": "Billing end date must be between 1 and 31"
+            }
+        }
+    )
+
+    @model_validator(mode='after')
+    def validate_billing_dates(self):
+        """
+        Validates that if either billing date is provided, both must be provided
+        and they must be consecutive days in the billing cycle.
+        """
+        start_date = self.billing_start_date
+        end_date = self.billing_end_date
+
+        # If either date is provided, both must be provided
+        if (start_date is not None and end_date is None) or \
+                (end_date is not None and start_date is None):
+            raise ValueError(
+                "Both billing start and end dates must be provided together"
+            )
+
+        # If both dates are provided, validate they are consecutive
+        if start_date is not None and end_date is not None:
+            # Handle special case where end_date is 1
+            if end_date == 1:
+                if start_date != 31:
+                    raise ValueError(
+                        "For a billing cycle ending on the 1st, "
+                        "the start date must be the 31st"
+                    )
+            # For all other cases, start date should be end_date - 1
+            elif start_date != end_date - 1:
+                raise ValueError(
+                    f"Invalid billing cycle dates. For a billing cycle ending on the {end_date}th, "
+                    f"the start date must be the {end_date - 1}th"
+                )
+
+        return self
+    class Config:
+        from_attributes = True
+
+class CreditCardEditResponse(ResponseSchema):
+    """
+    Response schema for credit card edit operation.
+    Follows our standard API response format for consistency.
+    """
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "message": "Credit card updated successfully! 💳 Updated credit limit to $6,000.",
+                "data": {
+                    "id": 1,
+                    "card_name": "BMO Credit Card",
+                    "credit_limit": 6000,
+                    "billing_start_date": 14,
+                    "billing_end_date": 15,
+                    "status": True,
+                    "user_id": 1,
+                    "created_at": "2024-12-02T10:00:00",
+                    "updated_at": "2024-12-02T10:00:00"
+                }
+            }
+        }
+

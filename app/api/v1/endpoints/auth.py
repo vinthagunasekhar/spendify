@@ -24,7 +24,7 @@ from app.core.config import settings
 import logging
 
 # Set up logging for the authentication module
-#logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Create router instance
 router = APIRouter()
@@ -178,7 +178,8 @@ async def signin(
             message="Welcome back! You've successfully signed in",
             data=Token(
                 access_token=access_token,
-                token_type="bearer"
+                token_type="Bearer",
+                username=user.user_name
             )
         )
 
