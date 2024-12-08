@@ -60,6 +60,7 @@ class Token(BaseModel):
     """
     access_token: str
     token_type: str = "Bearer"  # token type is always Bearer
+    username: str
 
 
 class UserSignInResponse(ResponseSchema[Token]):
