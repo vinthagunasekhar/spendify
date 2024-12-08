@@ -239,7 +239,7 @@ async def signout(
         expires_at = datetime.fromtimestamp(exp_timestamp)
 
         # Blacklist the token
-        blacklist_entry = BlacklistedToken(
+        blacklist_entry = TokenBlacklist(
             token=token,
             expires_at=expires_at,
             blacklisted_by=user_email
